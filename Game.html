@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Meteor Madness — Impactor-2025 (NASA NEO Integrated)</title>
+  <style>
+    :root {
+      --bg: #071026;
+      --panel: #071b2b;
+      --accent: #2c7bb6; /* updated accent for colorblind-friendly palette */
+      --muted: #9fb6c9;
+      --danger: #ff6b6b;
+      --gold: #ffd166;
+      --tooltip-bg: #333;
+      --tooltip-color: #fff;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
+    body{background:linear-gradient(180deg,#00111a 0%,#071026 100%);color:#dbefff;display:flex;gap:12px;padding:12px;box-sizing:border-box}
+    .app{display:grid;grid-template-columns:320px 1fr 340px;grid-template-rows:auto 1fr auto;gap:12px;width:100%;height:calc(100vh - 24px)}
+    header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:12px}
+    header h1{margin:0;font-size:18px;letter-spacing:0.5px}
+    .topbar{display:flex;gap:10px;align-items:center}
+    .stat{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:8px 10px;border-radius:8px;font-size:13px}
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,0.6)}
+    .left{grid-row:2/3}
+    .center{grid-row:2/3;display:flex;flex-direction:column}
+    .right{grid-row:2/3}
+    .bottom{grid-column:1/-1;padding:10px;border-radius:10px;display:flex;align-items:center;gap:12px}
+    canvas{background:#021026;border-radius:8px;display:block;width:100%;height:100%}
+    button{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
+    button.primary{background:var(--accent);color:#042;border:0}
+    .small{font-size:12px;color:var(--muted)}
+    .ticker{font-family:monospace;background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;width:100%;overflow:hidden}
+    .mapWrap{position:relative;height:600px}
+    .overlay{position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:flex-end;pointer-events:none}
+    .miniUI{position:absolute;left:10px;bottom:10px;pointer-events:auto}
+    .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(180deg,#062033,#031420);padding:16px;border-radius:12px;box-shadow:0 10px 60px rgba(0,0,0,0.7);max-width:920px;width:92%;z-index:60}
+    .hidden{display:none}
+    .row{display:flex;gap:8px;align-items:center}
+    .levelBtn{display:block;padding:8px;border-radius:8px;margin:6px 0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+    .muted-small{font-size:11px;color:var(--muted);margin-top:8px}
+    @media (max-width:1100px){.app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto} .left,.right{order:2}} 
+
+    .header-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .header-controls select,
+    .header-controls button {
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--muted);
+      background: var(--panel);
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <!-- API KEY Updated -->
+  <script>
+      const API_KEY = "q1LajBdKKWnjbvn4BZ7TQY19DtGHSDXDXxEYeYkv";
+  </script>
+
+  <div class="app">
+    <header class="panel">
+      <h1>Meteor Madness — Impactor-2025 (NASA NEO)</h1>
+      <div class="topbar">
+        <div class="stat">Impact: <span id="impactPct">—%</span></div>
+        <div class="stat">Budget: $<span id="budget">—</span></div>
+        <div class="stat">Trust: <span id="trust">—</span></div>
+        <div class="stat">Calm: <span id="calm">—</span></div>
+        <div class="stat">Population at risk: <span id="popRisk">—</span></div>
+        <div class="stat">Fragments: <span id="frags">—</span></div>
+      </div>
+    </header>
+
+    <aside class="panel left">
+      <h3>Actions</h3>
+      <div>
+        <button id="observeBtn">🔭 Observe</button>
+        <div style="height:8px"></div>
+        <button id="kineticBtn">🚀 Kinetic Impactor</button>
+        <button id="tractorBtn">🛰️ Gravity Tractor</button>
+        <button id="laserBtn">🔦 Laser Ablation</button>
+        <button id="pulseBtn">⚡ Quantum Pulse</button>
+        <div style="height:8px"></div>
+        <button id="evacBtn">🏠 Evacuate (place shelter)</button>
+        <div style="height:12px"></div>
+        <div class="small">Communicate</div>
+        <div style="height:6px"></div>
+        <button id="commTransparent">Transparent</button>
+        <button id="commReassure">Reassuring</button>
+        <button id="commBalanced">Balanced</button>
+        <div style="height:12px"></div>
+        <div class="small">Controls</div>
+        <div style="height:6px"></div>
+        <button id="menuBtn">Level Menu</button>
+        <button id="restartBtn">Restart Level</button>
+        <div style="height:12px"></div>
+        <div class="small">NEO Data</div>
+        <div class="muted-small" id="neoStatus">Loading NASA NEO data...</div>
+        <div style="height:8px"></div>
+        <div class="small">Objectives</div>
+        <ol style="font-size:13px;margin:6px 0 0 18px;color:var(--muted)">
+          <li>Shrink uncertainty</li><li>Deflect or evacuate</li><li>Maintain Trust & Calm</li>
+        </ol>
+      </div>
+    </aside>
+
+    <main class="panel center">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+        <div class="small">View</div>
+        <button id="toggleView" class="primary">Orbit ↔ Map</button>
+        <div style="flex:1"></div>
+        <div class="small">Level: <strong id="levelDisplay">—</strong></div>
+      </div>
+      <div class="mapWrap" id="mapWrap">
+        <canvas id="mainCanvas"></canvas>
+        <div class="overlay">
+          <div class="miniUI panel" style="pointer-events:auto">
+            <div class="small">Time to impact: <strong id="timer">—</strong></div>
+            <div class="small">Corridor: <strong id="corridorSz">—</strong></div>
+            <div style="height:6px"></div>
+            <div class="small">Energy: <progress id="energyBar" value="100" max="100" style="width:120px"></progress></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="panel right">
+      <h3>Mission Status</h3>
+      <div id="objectives" class="small">Choose a level from the menu to begin.</div>
+      <div style="height:12px"></div>
+      <h4>News Ticker</h4>
+      <div class="ticker news" id="newsTicker">Welcome to Meteor Madness. Pick a level to start.</div>
+      <div style="height:12px"></div>
+      <h4>Score</h4>
+      <div class="small">Lives saved: <span id="livesSaved">—</span></div>
+      <div class="small">Resources used: <span id="resUsed">—</span></div>
+      <div class="small">Grade: <strong id="finalGrade">—</strong></div>
+      <div style="height:12px"></div>
+      <h4>NEO Feed (sample)</h4>
+      <div id="neoFeed" class="small muted-small">Loading...</div>
+    </aside>
+
+    <footer class="panel bottom">
+      <div class="small">Tip: Use Observe to shrink corridors. Shelters reduce casualties. Quantum Pulse is expensive but powerful.</div>
+    </footer>
+  </div>
+
+  <!-- Level Menu Modal -->
+  <div id="menuModal" class="modal hidden">
+    <h2>Select Level</h2>
+    <div id="levelList"></div>
+    <div style="height:12px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button id="closeMenu">Close</button>
+    </div>
+  </div>
+
+  <!-- Result modal -->
+  <div id="resultModal" class="modal hidden">
+    <h2 id="resultTitle">Level Results</h2>
+    <div id="resultText" class="small"></div>
+    <div style="height:12px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button id="replayBtn">Replay Level</button>
+      <button id="gotoMenuBtn" class="primary">Level Menu</button>
+    </div>
+  </div>
+
+<script>
+/* Meteor Madness — NASA NEO integrated single-file
+   - Automatically loads NASA NEOs using DEMO_KEY on startup
+   - Falls back to procedural asteroids if NASA data can't be fetched
+   - For production/hackathon, swap DEMO_KEY for your key and/or use server-side proxy
+*/
+
+const DEMO_NASA_API_KEY = "q1LajBdKKWnjbvn4BZ7TQY19DtGHSDXDXxEYeYkv"; // updated to real API key
+const NEO_BROWSE_URL = `https://api.nasa.gov/neo/rest/v1/neo/browse?api_key=${DEMO_NASA_API_KEY}`;
+
+/* ---------- Utilities ---------- */
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const rand = (a,b)=>Math.random()*(b-a)+a;
+const choose = arr => arr[Math.floor(Math.random()*arr.length)];
+const nowMs = ()=>Date.now();
+
+/* ---------- Canvas setup ---------- */
+const wrap = document.getElementById('mapWrap');
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+function fitCanvas(){
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  canvas.width = Math.floor(w * devicePixelRatio);
+  canvas.height = Math.floor(h * devicePixelRatio);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+window.addEventListener('resize', ()=>{ fitCanvas(); draw(); });
+fitCanvas();
+
+/* ---------- UI elements ---------- */
+const impactPctEl = document.getElementById('impactPct');
+const budgetEl = document.getElementById('budget');
+const trustEl = document.getElementById('trust');
+const calmEl = document.getElementById('calm');
+const popRiskEl = document.getElementById('popRisk');
+const fragsEl = document.getElementById('frags');
+const levelDisplay = document.getElementById('levelDisplay');
+const timerEl = document.getElementById('timer');
+const corridorSzEl = document.getElementById('corridorSz');
+const newsTicker = document.getElementById('newsTicker');
+const livesSavedEl = document.getElementById('livesSaved');
+const resUsedEl = document.getElementById('resUsed');
+const finalGradeEl = document.getElementById('finalGrade');
+const energyBar = document.getElementById('energyBar');
+const menuModal = document.getElementById('menuModal');
+const levelList = document.getElementById('levelList');
+const resultModal = document.getElementById('resultModal');
+const resultText = document.getElementById('resultText');
+const resultTitle = document.getElementById('resultTitle');
+const neoStatus = document.getElementById('neoStatus');
+const neoFeed = document.getElementById('neoFeed');
+
+/* ---------- Game level definitions ---------- */
+const LEVELS = [
+  {id:1,name:'First Contact',time:40,pop:50000,budget:900,frags:1,boss:false,objective:'Learn Observe + Kinetic. Reduce impact <5%.'},
+  {id:2,name:'Ocean Strike',time:55,pop:150000,budget:1200,frags:1,boss:false,objective:'Deflect or evacuate 70% coastal OR deflect.'},
+  {id:3,name:'Seismic Shock',time:65,pop:220000,budget:1400,frags:1,boss:false,objective:'Manage seismic effects; casualties <20%.'},
+  {id:4,name:'Fragmentation Storm',time:70,pop:300000,budget:1600,frags:4,boss:true,objective:'Handle multi-fragment; neutralize >=3.'},
+  {id:5,name:'Global Panic',time:90,pop:500000,budget:2000,frags:6,boss:true,objective:'Balance defense + Trust: Save Earth & Trust>50 & Calm>40.'},
+];
+
+/* ---------- Game state ---------- */
+let game = null;
+let nasaNeos = []; // loaded NEOs (raw)
+let nasaLoaded = false;
+
+function newGameState(){
+  return {
+    levelIndex: null,
+    levelCfg: null,
+    budget:0,
+    trust:50,
+    calm:50,
+    populationAtRisk:0,
+    hotspots:[],
+    shelters:[],
+    resourcesUsed:0,
+    livesSaved:0,
+    asteroid:null,
+    running:false,
+    paused:false,
+    view:'orbit',
+    messages:[],
+    energy:100,
+    tool:null,
+    tractorHeld:false,
+    pointer:{x:wrap.clientWidth/2,y:wrap.clientHeight/2},
+    useNASA: nasaLoaded // flag to use NASA data when available
+  };
+}
+
+/* ---------- NASA NEO fetching & mapping ---------- */
+async function fetchNasaNeos(){
+  try{
+    neoStatus.textContent = 'Loading NASA NEOs...';
+    const resp = await fetch(NEO_BROWSE_URL);
+    if(!resp.ok) throw new Error('NEO fetch failed ' + resp.status);
+    const data = await resp.json();
+    if(data && data.near_earth_objects){
+      nasaNeos = data.near_earth_objects;
+      nasaLoaded = true;
+      neoStatus.textContent = `NASA NEOs loaded: ${nasaNeos.length} items (using DEMO_KEY).`;
+      populateNeoFeed();
+    } else {
+      throw new Error('Unexpected NEO response');
+    }
+  }catch(err){
+    console.warn('NASA NEO fetch failed:', err);
+    neoStatus.textContent = 'NASA NEO load failed — using procedural asteroids.';
+    nasaNeos = [];
+    nasaLoaded = false;
+  }
+}
+
+function populateNeoFeed(){
+  if(!nasaNeos || nasaNeos.length === 0){
+    neoFeed.textContent = 'No NEOs available.';
+    return;
+  }
+  // show 3 sample neos with brief info
+  const sample = nasaNeos.slice(0,3).map(n => {
+    const diam = n.estimated_diameter?.meters;
+    const min = diam?.estimated_diameter_min?.toFixed(1) ?? '?';
+    const max = diam?.estimated_diameter_max?.toFixed(1) ?? '?';
+    const approach = n.close_approach_data && n.close_approach_data[0];
+    const date = approach ? approach.close_approach_date : 'N/A';
+    const vel = approach ? Number(approach.relative_velocity.kilometers_per_second).toFixed(2) + ' km/s' : '';
+    return `${n.name} — ${min}–${max} m — approach ${date} ${vel}`;
+  }).join('\n');
+  neoFeed.textContent = sample;
+}
+
+/* Convert a NASA NEO object into our in-game asteroid fragment parameters.
+   We create one or more fragments from a single NEO if the level requests multiple fragments.
+*/
+function mapNeoToFragments(neo, fragCount=1, boss=false){
+  // diameter meters -> radius px scale factor
+  const diam = neo.estimated_diameter?.meters;
+  const estMin = diam?.estimated_diameter_min ?? 8;
+  const estMax = diam?.estimated_diameter_max ?? 20;
+  const diameter = (estMin + estMax) / 2;
+  // assume density ~3000 kg/m^3 to compute a rough 'mass' proxy
+  const density = 3000;
+  // convert meters to 'game radius' (visual)
+  const radiusPx = clamp(6 + diameter * 0.08, 6, 50);
+  // velocity from last close approach, in km/s, map to game speed
+  const approach = neo.close_approach_data && neo.close_approach_data[0];
+  const v_kms = approach ? Number(approach.relative_velocity.kilometers_per_second) : rand(5,30);
+  // miss distance km
+  const miss_km = approach ? Number(approach.miss_distance.kilometers) : rand(1000,1e6);
+
+  const massProxy = density * Math.pow(diameter/2, 3); // not precise but usable for scaling
+  const baseCorridor = clamp(Math.log10(Math.max(miss_km,1000)) * 18, 24, 220);
+
+  const fragments = [];
+  for(let i=0;i<fragCount;i++){
+    fragments.push({
+      id: neo.id ? `${neo.name.split(' ')[0]}-${i+1}` : 'F'+(i+1),
+      // randomize direction so it comes from different angles visually
+      angle: rand(-Math.PI, Math.PI),
+      // map kms to visual speed: scale down to game-friendly values
+      speed: clamp(0.002 + (v_kms/10000), 0.0025, 0.008) * (1 + (boss?0.1:0)),
+      radius: boss ? clamp(radiusPx*1.2, 10, 60) : clamp(radiusPx, 6, 44),
+      mass: clamp(massProxy/1000, 4, 400),
+      corridor: baseCorridor + rand(-12,12),
+      deflected:0,
+      impacted:false,
+      orbitOffset: rand(-0.2,0.2),
+      neoRef: neo
+    });
+  }
+  return fragments;
+}
+
+/* ---------- Asteroid & hotspots generators (procedural fallback) ---------- */
+function createAsteroidProcedural(cfg){
+  const fragments=[];
+  for(let i=0;i<cfg.frags;i++){
+    fragments.push({
+      id:'F'+(i+1),
+      angle: rand(-Math.PI, Math.PI),
+      speed: rand(0.0025, 0.005)*(1+cfg.id*0.02),
+      radius: cfg.boss ? rand(12,28) : rand(8,16),
+      mass: cfg.boss ? rand(12,36) : rand(4,12),
+      corridor: rand(60,160),
+      deflected:0,
+      impacted:false,
+      orbitOffset: rand(-0.2,0.2)
+    });
+  }
+  return {fragments, timeToImpact: cfg.time, detectedAt: nowMs()};
+}
+
+function generateHotspots(n=12){
+  const arr=[];
+  for(let i=0;i<n;i++){
+    const coastal = Math.random() < 0.5;
+    const pop = Math.floor(coastal ? rand(30000,200000) : rand(2000,120000));
+    arr.push({id:'H'+(i+1), x: rand(60, wrap.clientWidth-60), y: rand(60, wrap.clientHeight-60), pop, coastal});
+  }
+  return arr;
+}
+
+/* ---------- Start / Level selection UI ---------- */
+function openLevelMenu(){
+  levelList.innerHTML = '';
+  LEVELS.forEach((lvl, idx)=>{
+    const btn = document.createElement('button');
+    btn.className = 'levelBtn';
+    btn.innerHTML = `<strong>Level ${lvl.id} — ${lvl.name}</strong><div style="font-size:12px;color:var(--muted)">${lvl.objective}</div>`;
+    btn.onclick = ()=>{ startLevel(idx); menuModal.classList.add('hidden'); };
+    levelList.appendChild(btn);
+  });
+  menuModal.classList.remove('hidden');
+}
+document.getElementById('menuBtn').onclick = openLevelMenu;
+document.getElementById('closeMenu').onclick = ()=> menuModal.classList.add('hidden');
+
+/* ---------- News & UI helpers ---------- */
+function news(msg){
+  if(!game) return;
+  game.messages.unshift({t:nowMs(), text:msg});
+  newsTicker.textContent = msg;
+}
+function updateUI(){
+  impactPctEl.textContent = Math.round(calcGlobalImpact()*100)+'%';
+  budgetEl.textContent = Math.round(game.budget);
+  trustEl.textContent = Math.round(game.trust);
+  calmEl.textContent = Math.round(game.calm);
+  popRiskEl.textContent = game.populationAtRisk.toLocaleString();
+  fragsEl.textContent = game.asteroid ? game.asteroid.fragments.length : '—';
+  levelDisplay.textContent = game.levelCfg ? `${game.levelCfg.id} — ${game.levelCfg.name}` : '—';
+  timerEl.textContent = game.asteroid ? Math.max(0, Math.round(game.asteroid.timeToImpact)) + 's' : '—';
+  corridorSzEl.textContent = game.asteroid ? Math.round(avgCorridor()) : '—';
+  energyBar.value = Math.round(game.energy);
+  livesSavedEl.textContent = game.livesSaved ? game.livesSaved.toLocaleString() : '—';
+  resUsedEl.textContent = game.resourcesUsed ? '$'+Math.round(game.resourcesUsed) : '—';
+  finalGradeEl.textContent = game.score ? game.score.grade : '—';
+}
+
+/* ---------- Gameplay mechanics ---------- */
+function avgCorridor(){
+  if(!game.asteroid) return 0;
+  return game.asteroid.fragments.reduce((s,f)=>s+f.corridor,0)/game.asteroid.fragments.length;
+}
+function calcGlobalImpact(){
+  if(!game.asteroid) return 0;
+  let sum=0;
+  game.asteroid.fragments.forEach(f=>{
+    const base = clamp(1 - (f.deflected/80), 0, 1);
+    const unc = clamp(f.corridor/240, 0, 1);
+    sum += base * unc;
+  });
+  return clamp(sum / game.asteroid.fragments.length, 0, 1);
+}
+
+/* ---------- Observation mini-game ---------- */
+async function playObservation(){
+  if(!game.running || game.paused) return;
+  if(game.observing) return;
+  game.observing = true;
+  news('Observation started — align blue reticle into golden targets.');
+  const rect = canvas.getBoundingClientRect();
+  const overlay = document.createElement('div');
+  overlay.style.position='absolute'; overlay.style.left=rect.left+'px'; overlay.style.top=rect.top+'px';
+  overlay.style.width=rect.width+'px'; overlay.style.height=rect.height+'px'; overlay.style.zIndex=3000; overlay.style.touchAction='none';
+  document.body.appendChild(overlay);
+
+  let success=0, rounds=5;
+  for(let r=0;r<rounds;r++){
+    overlay.innerHTML='';
+    const tx = rand(60, rect.width-60), ty = rand(60, rect.height-60);
+    const target = document.createElement('div');
+    target.style.position='absolute'; target.style.left=(tx-20)+'px'; target.style.top=(ty-20)+'px'; target.style.width='40px'; target.style.height='40px';
+    target.style.border='3px solid rgba(255,209,102,0.95)'; target.style.borderRadius='50%';
+    overlay.appendChild(target);
+    const player = document.createElement('div');
+    player.style.position='absolute'; player.style.left=(rect.width/2-12)+'px'; player.style.top=(rect.height/2-12)+'px'; player.style.width='24px'; player.style.height='24px';
+    player.style.borderRadius='50%'; player.style.background='rgba(0,194,168,0.95)'; overlay.appendChild(player);
+
+    function moveHandler(e){
+      const p = e.touches? e.touches[0] : e;
+      player.style.left = (p.clientX - rect.left - 12) + 'px';
+      player.style.top = (p.clientY - rect.top - 12) + 'px';
+    }
+    overlay.addEventListener('mousemove', moveHandler);
+    overlay.addEventListener('touchmove', moveHandler, {passive:true});
+    await new Promise(res=>setTimeout(res, 2800));
+    const px = parseFloat(player.style.left)+12, py=parseFloat(player.style.top)+12;
+    const dist = Math.hypot(px - tx, py - ty);
+    if(dist < 36){ success++; news('Observation success.'); } else news('Observation missed.');
+    overlay.removeEventListener('mousemove', moveHandler);
+    overlay.removeEventListener('touchmove', moveHandler);
+    await new Promise(res=>setTimeout(res, 200));
+  }
+  document.body.removeChild(overlay);
+  game.observing = false;
+  // shrink corridor proportionally
+  const shrink = 10 * success;
+  game.asteroid.fragments.forEach(f=> f.corridor = Math.max(12, f.corridor - shrink));
+  game.budget = Math.max(0, game.budget - 40);
+  game.resourcesUsed += 40;
+  updateUI();
+}
+
+/* ---------- Deflection tools ---------- */
+function startKinetic(){
+  if(!game.running || game.paused) return;
+  news('Kinetic: click near a fragment to fire. Cost: $60 per hit.');
+  game.tool = 'kinetic';
+  function handler(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches?e.touches[0].clientX:e.clientX) - rect.left;
+    const y = (e.touches?e.touches[0].clientY:e.clientY) - rect.top;
+    const hits = checkHitAt(x,y);
+    if(hits.length === 0){ news('Missed.'); game.budget = Math.max(0, game.budget - 10); game.resourcesUsed += 10; }
+    else{
+      hits.forEach(f=>{
+        const delta = rand(10,28); f.deflected += delta; f.corridor = clamp(f.corridor + rand(4,10), 12, 360);
+        news(`Kinetic hit ${f.id} (+${Math.round(delta)})`);
+      });
+      game.budget = Math.max(0, game.budget - 60);
+      game.resourcesUsed += 60;
+    }
+    updateUI();
+    canvas.removeEventListener('click', handler);
+    canvas.removeEventListener('touchstart', handler);
+    game.tool = null;
+  }
+  canvas.addEventListener('click', handler);
+  canvas.addEventListener('touchstart', handler);
+}
+
+let tractorMode = false;
+function toggleTractor(){
+  tractorMode = !tractorMode;
+  game.tool = tractorMode? 'tractor' : null;
+  news(tractorMode? 'Gravity Tractor active — hold pointer near fragment.' : 'Gravity Tractor off.');
+}
+
+let laserMode = false;
+function toggleLaser(){
+  laserMode = !laserMode;
+  game.tool = laserMode? 'laser' : null;
+  news(laserMode? 'Laser active — hold pointer near fragment.' : 'Laser off.');
+}
+
+function firePulse(){
+  if(!game.running || game.paused) return;
+  if(game.budget < 300){ news('Not enough budget for Quantum Pulse.'); return; }
+  game.budget -= 300; game.resourcesUsed += 300;
+  game.asteroid.fragments.forEach(f=>{ f.deflected += rand(18,36); f.corridor = Math.max(12, f.corridor - rand(18,36)); });
+  news('Quantum Pulse fired — global nudge applied.');
+  updateUI();
+}
+
+/* ---------- Evacuation ---------- */
+let placingShelter=false;
+function startEvac(){
+  if(!game.running || game.paused) return;
+  placingShelter = true;
+  news('Evacuation: click on map to place shelter ($100).');
+}
+canvas.addEventListener('click', (e)=>{
+  if(!placingShelter || game.view !== 'map' || game.paused) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.touches?e.touches[0].clientX:e.clientX) - rect.left;
+  const y = (e.touches?e.touches[0].clientY:e.touches[0].clientY) - rect.top || e.clientY - rect.top;
+  game.shelters.push({x,y,radius:80,level:1});
+  game.budget = Math.max(0, game.budget - 100);
+  game.resourcesUsed += 100;
+  placingShelter=false;
+  news('Shelter placed.');
+  updateUI();
+});
+
+/* ---------- Communications ---------- */
+document.getElementById('commTransparent').onclick = ()=>{
+  if(!game.running) return;
+  game.trust = clamp(game.trust + 9,0,100);
+  game.calm = clamp(game.calm - 6,0,100);
+  news('Transparent briefing: Trust ↑, Calm ↓');
+  updateUI();
+};
+document.getElementById('commReassure').onclick = ()=>{
+  if(!game.running) return;
+  game.calm = clamp(game.calm + 9,0,100);
+  game.trust = clamp(game.trust - 4,0,100);
+  news('Reassuring briefing: Calm ↑, Trust ↓');
+  updateUI();
+};
+document.getElementById('commBalanced').onclick = ()=>{
+  if(!game.running) return;
+  game.calm = clamp(game.calm + 5,0,100);
+  game.trust = clamp(game.trust + 5,0,100);
+  news('Balanced briefing: moderate effects');
+  updateUI();
+};
+
+/* ---------- Hit detection & tractor/laser interaction ---------- */
+function checkHitAt(x,y){
+  const hits=[];
+  game.asteroid.fragments.forEach(f=>{
+    const pos = astroScreenPos(f);
+    const d = Math.hypot(x-pos.x, y-pos.y);
+    if(d < 30 + f.radius) hits.push(f);
+  });
+  return hits;
+}
+
+/* ---------- Resolution: on time expiry ---------- */
+function resolveImpact(){
+  news('Impact sequence: calculating effects...');
+  let totalCasualties = 0;
+  const events = [];
+  game.asteroid.fragments.forEach((f, idx)=>{
+    const impactProb = clamp(1 - f.deflected/80,0,1) * clamp(f.corridor/220,0,1);
+    if(Math.random() < impactProb){
+      const lonFactor = (Math.sin(f.angle)+1)/2;
+      const x = 60 + Math.floor(lonFactor*(wrap.clientWidth-120));
+      const sorted = game.hotspots.slice().sort((a,b)=> Math.abs(a.x - x) - Math.abs(b.x - x));
+      const hit = sorted[0] || choose(game.hotspots);
+      const energy = f.mass * Math.pow(f.radius,2);
+      let casualties = Math.floor(hit.pop * (0.02 + energy/200));
+      const oceanImpact = (!hit.coastal && Math.random() < 0.6);
+      if(oceanImpact){
+        news(`Fragment ${idx+1} hit offshore near ${hit.id}: tsunami.`);
+        const waveRadius = 120 + energy*6;
+        game.hotspots.forEach(h=>{
+          const d = Math.hypot(h.x - hit.x, h.y - hit.y);
+          if(d < waveRadius){
+            const shelterCover = computeShelterProtection(h);
+            const compliance = (game.trust/100) * (game.calm/100);
+            const extra = Math.floor(h.pop * 0.015 * (1 - shelterCover) * (1 - compliance));
+            casualties += extra;
+          }
+        });
+      } else {
+        const shelterCover = computeShelterProtection(hit);
+        const compliance = (game.trust/100) * (game.calm/100);
+        casualties = Math.floor(casualties * (1 - shelterCover) * (1 - compliance));
+        news(`Fragment ${idx+1} impacted near ${hit.id}: ~${casualties} casualties.`);
+      }
+      totalCasualties += casualties;
+      events.push({frag: f, hotspot: hit, casualties, ocean:oceanImpact});
+    } else {
+      news(`Fragment ${idx+1} missed Earth.`);
+    }
+  });
+
+  const livesSaved = Math.max(0, game.populationAtRisk - totalCasualties);
+  game.livesSaved = livesSaved;
+  game.resourcesUsed = Math.round(game.resourcesUsed);
+  game.score = computeGrade(livesSaved, game.resourcesUsed, game.trust, game.calm);
+
+  // Show modal with results
+  resultTitle.textContent = `Level ${game.levelCfg.id} Results — ${game.levelCfg.name}`;
+  resultText.innerHTML = `Casualties: <strong>${totalCasualties.toLocaleString()}</strong><br>`+
+                         `Lives saved: <strong>${livesSaved.toLocaleString()}</strong><br>`+
+                         `Resources used: $${game.resourcesUsed}<br>`+
+                         `Trust: ${Math.round(game.trust)} | Calm: ${Math.round(game.calm)}<br>`+
+                         `Grade: <strong>${game.score.grade}</strong>`;
+  resultModal.classList.remove('hidden');
+
+  // Determine pass/fail
+  const pass = checkPassCondition(game.levelCfg, {totalCasualties, livesSaved});
+  news(pass? 'Level passed!' : 'Level failed.');
+  game.running = false;
+  return {events, totalCasualties, pass};
+}
+
+function checkPassCondition(cfg, res){
+  if(cfg.id === 1) return calcGlobalImpact() < 0.05 || res.livesSaved > cfg.pop * 0.95;
+  if(cfg.id === 2) return res.livesSaved > cfg.pop * 0.7 || calcGlobalImpact() < 0.05;
+  if(cfg.id === 3) return res.totalCasualties < cfg.pop * 0.2;
+  if(cfg.id === 4){
+    const neutralized = game.asteroid.fragments.filter(f => f.deflected > 30).length;
+    return neutralized >= 3;
+  }
+  if(cfg.id === 5) return (res.livesSaved > cfg.pop * 0.5) && (game.trust > 50) && (game.calm > 40);
+  return false;
+}
+
+function computeShelterProtection(hotspot){
+  let cover = 0;
+  game.shelters.forEach(s=>{
+    const d = Math.hypot(hotspot.x - s.x, hotspot.y - s.y);
+    if(d < s.radius) cover = Math.max(cover, 0.6);
+  });
+  return cover;
+}
+
+function computeGrade(livesSaved, resourcesUsed, trust, calm){
+  const p = livesSaved / game.populationAtRisk;
+  const eff = clamp(1 - resourcesUsed/3000,0,1);
+  const social = clamp((trust+calm)/200,0,1);
+  const sc = p*0.62 + eff*0.23 + social*0.15;
+  if(sc > 0.86) return {grade:'S',score:sc};
+  if(sc > 0.72) return {grade:'A',score:sc};
+  if(sc > 0.55) return {grade:'B',score:sc};
+  if(sc > 0.4) return {grade:'C',score:sc};
+  return {grade:'F',score:sc};
+}
+
+/* ---------- Drawing helpers ---------- */
+function astroScreenPos(f){
+  const cx = wrap.clientWidth/2, cy = wrap.clientHeight/2 - 20;
+  const orbitR = Math.min(wrap.clientWidth, wrap.clientHeight)/3 - 40;
+  return {x: cx + Math.cos(f.angle + f.orbitOffset) * orbitR, y: cy + Math.sin(f.angle + f.orbitOffset) * orbitR};
+}
+
+function draw(){
+  if(!game) return;
+  ctx.clearRect(0,0, canvas.width, canvas.height);
+  // subtle stars layer
+  ctx.save();
+  ctx.fillStyle = '#00121a';
+  ctx.fillRect(0,0, wrap.clientWidth, wrap.clientHeight);
+  for(let i=0;i<60;i++){
+    ctx.fillStyle = 'rgba(255,255,255,'+ (Math.random()*0.35) +')';
+    ctx.fillRect(Math.random()*wrap.clientWidth, Math.random()*wrap.clientHeight, Math.random()*1.2, Math.random()*1.2);
+  }
+  ctx.restore();
+
+  if(game.view === 'orbit') drawOrbitView(); else drawMapView();
+  updateUI();
+}
+
+function drawOrbitView(){
+  const cx = wrap.clientWidth/2, cy = wrap.clientHeight/2 - 20;
+  const orbitR = Math.min(wrap.clientWidth, wrap.clientHeight)/3 - 40;
+
+  ctx.save();
+  // orbit ring
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.arc(cx,cy, orbitR, 0, Math.PI*2); ctx.stroke();
+
+  // Earth
+  const earthR = 66;
+  const grd = ctx.createRadialGradient(cx-20,cy-20,10,cx,cy,earthR);
+  grd.addColorStop(0,'#0b6b4f'); grd.addColorStop(0.6,'#0b486b'); grd.addColorStop(1,'#052233');
+  ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(cx,cy, earthR,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font='12px sans-serif'; ctx.fillText('Earth', cx-14, cy+4);
+
+  // fragments+corridors
+  if(game.asteroid && game.asteroid.fragments){
+    game.asteroid.fragments.forEach((f,i)=>{
+      const pos = astroScreenPos(f);
+      // corridor ellipse
+      const dirX = cx - pos.x, dirY = cy - pos.y;
+      const ang = Math.atan2(dirY, dirX);
+      ctx.save(); ctx.translate(pos.x,pos.y); ctx.rotate(ang);
+      const c = clamp((f.corridor-40)/180, 0, 1);
+      const color = `rgba(${Math.round(255*c)},${Math.round(220*(1-c))},${Math.round(120*(1-c))},0.12)`;
+      ctx.strokeStyle = color; ctx.lineWidth = Math.max(6, Math.min(28, f.corridor/12));
+      ctx.beginPath(); ctx.ellipse(0,0, f.corridor, 10, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+
+      // fragment body
+      ctx.beginPath(); ctx.fillStyle = '#ffd166'; ctx.arc(pos.x, pos.y, f.radius, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#001'; ctx.font='11px monospace'; ctx.fillText(f.id, pos.x-14, pos.y+4);
+    });
+
+    // predicted impact marker for highest risk
+    const highest = game.asteroid.fragments.reduce((a,b)=> impactScore(b) > impactScore(a) ? b : a, game.asteroid.fragments[0]);
+    const predicted = astroScreenPos(highest);
+    const impactPoint = projectToEarthEdge(predicted, {x:cx,y:cy}, earthR);
+    ctx.beginPath(); ctx.fillStyle='rgba(255,90,90,0.95)'; ctx.arc(impactPoint.x, impactPoint.y, 8, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='12px sans-serif'; ctx.fillText('Predicted impact', impactPoint.x + 12, impactPoint.y + 4);
+  }
+
+  ctx.restore();
+}
+
+function drawMapView(){
+  ctx.save();
+  ctx.fillStyle = '#05233a'; ctx.fillRect(0,0, wrap.clientWidth, wrap.clientHeight);
+  game.hotspots.forEach(h=>{
+    ctx.beginPath();
+    ctx.fillStyle = h.coastal ? '#ffd9b3' : '#cfe3ff';
+    const radius = Math.max(6, Math.log10(h.pop + 1) * 2.2);
+    ctx.arc(h.x, h.y, radius, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#003'; ctx.font='12px sans-serif'; ctx.fillText(h.id + ' • ' + Math.round(h.pop/1000)+'k', h.x + radius + 6, h.y + 4);
+  });
+  // shelters
+  game.shelters.forEach(s=>{
+    ctx.beginPath(); ctx.fillStyle='rgba(0,194,168,0.9)'; ctx.rect(s.x-8,s.y-8,16,16); ctx.fill();
+    ctx.beginPath(); ctx.strokeStyle='rgba(0,194,168,0.25)'; ctx.lineWidth=8; ctx.arc(s.x,s.y,s.radius,0,Math.PI*2); ctx.stroke();
+  });
+  // approaching fragments as small dots
+  if(game.asteroid && game.asteroid.fragments){
+    game.asteroid.fragments.forEach((f,i)=>{
+      const pos = {x: 40 + (wrap.clientWidth-80) * ((Math.sin(f.angle)+1)/2), y: 40 + (wrap.clientHeight-80) * ((Math.cos(f.angle)+1)/2)};
+      ctx.beginPath(); ctx.fillStyle = '#ffd166'; ctx.arc(pos.x, pos.y, Math.max(4, f.radius*0.6), 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#001'; ctx.font='11px monospace'; ctx.fillText(f.id, pos.x+10, pos.y+4);
+    });
+  }
+  ctx.restore();
+}
+
+function impactScore(f){ return (1 - f.deflected/80) * (f.corridor/220); }
+function projectToEarthEdge(from, center, r){ const dx = from.x - center.x, dy = from.y - center.y; const ang = Math.atan2(dy,dx); return {x:center.x + Math.cos(ang)*r, y:center.y + Math.sin(ang)*r}; }
+
+/* ---------- Main loop & updates ---------- */
+let last = performance.now();
+function loop(now){
+  const dt = (now - last)/1000; last = now;
+  if(game && game.running && !game.paused){
+    step(dt);
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function step(dt){
+  // energy regen
+  game.energy = clamp(game.energy + dt*8, 0, 100);
+
+  // countdown
+  if(game.asteroid.timeToImpact > 0) game.asteroid.timeToImpact = Math.max(0, game.asteroid.timeToImpact - dt);
+
+  // advance fragments
+  game.asteroid.fragments.forEach(f=>{
+    f.angle += f.speed * (1 + f.deflected/140) * dt * 60;
+    f.corridor = clamp(f.corridor - dt*0.6, 12, 400);
+  });
+
+  // tractor hold effect (if tool active and pointer held)
+  if(game.tool === 'tractor' && game.tractorHeld && game.energy > 0){
+    const px = game.pointer.x, py = game.pointer.y;
+    const closest = game.asteroid.fragments.reduce((acc,f)=>{
+      const p = astroScreenPos(f); const d = Math.hypot(px-p.x, py-p.y);
+      if(!acc || d < acc.d) return {f,d}; return acc;
+    }, null);
+    if(closest && closest.d < 220){
+      closest.f.deflected += dt * 6;
+      closest.f.corridor = Math.max(12, closest.f.corridor - dt*3);
+      game.energy = Math.max(0, game.energy - dt*8);
+      game.budget = Math.max(0, game.budget - dt*1.2);
+      game.resourcesUsed += dt*1.2;
+    }
+  }
+
+  // laser sustained
+  if(game.tool === 'laser' && game.tractorHeld && game.energy > 0){
+    const px = game.pointer.x, py = game.pointer.y;
+    const target = game.asteroid.fragments.reduce((acc,f)=>{
+      const p=astroScreenPos(f); const d=Math.hypot(px-p.x, py-p.y);
+      if(!acc || d < acc.d) return {f,d}; return acc;
+    }, null);
+    if(target && target.d < 180){
+      target.f.deflected += dt*9;
+      target.f.corridor = Math.max(12, target.f.corridor - dt*5);
+      game.energy = Math.max(0, game.energy - dt*10);
+      game.budget = Math.max(0, game.budget - dt*1.5);
+      game.resourcesUsed += dt*1.5;
+    }
+  }
+
+  // if time to impact reached
+  if(game.asteroid.timeToImpact <= 0 && game.running){
+    const res = resolveImpact();
+    // after modal, player chooses next action (replay or menu)
+  }
+
+  updateUI();
+}
+
+/* ---------- Input handling ---------- */
+canvas.addEventListener('mousemove', (e)=>{
+  if (!game || !game.pointer) return;
+  const r = canvas.getBoundingClientRect();
+  game.pointer.x = e.clientX - r.left;
+  game.pointer.y = e.clientY - r.top;
+});
+canvas.addEventListener('touchmove', (e)=>{
+  const r = canvas.getBoundingClientRect();
+  game.pointer.x = (e.touches[0].clientX - r.left);
+  game.pointer.y = (e.touches[0].clientY - r.top);
+}, {passive:true});
+
+let pointerDown = false;
+canvas.addEventListener('pointerdown', (e)=>{ pointerDown = true; if(game.tool==='tractor' || game.tool==='laser') game.tractorHeld = true; });
+canvas.addEventListener('pointerup', (e)=>{ pointerDown = false; game.tractorHeld = false; });
+
+/* ---------- Buttons ---------- */
+document.getElementById('observeBtn').onclick = ()=> playObservation();
+document.getElementById('kineticBtn').onclick = ()=> startKinetic();
+document.getElementById('tractorBtn').onclick = ()=> { toggleTractor(); game.tool = tractorMode ? 'tractor' : null; };
+document.getElementById('laserBtn').onclick = ()=> { toggleLaser(); game.tool = laserMode ? 'laser' : null; };
+document.getElementById('pulseBtn').onclick = ()=> firePulse();
+document.getElementById('evacBtn').onclick = ()=> startEvac();
+document.getElementById('toggleView').onclick = ()=> { game.view = game.view === 'orbit' ? 'map' : 'orbit'; news('View: '+game.view); };
+document.getElementById('restartBtn').onclick = ()=> { if(game.levelIndex!==null) startLevel(game.levelIndex); };
+
+document.getElementById('replayBtn').onclick = ()=>{
+  resultModal.classList.add('hidden');
+  if(game.levelIndex !== null) startLevel(game.levelIndex);
+};
+document.getElementById('gotoMenuBtn').onclick = ()=>{
+  resultModal.classList.add('hidden');
+  openLevelMenu();
+};
+
+/* ---------- Level start/reset ---------- */
+function startLevel(idx){
+  // initialize state
+  game = newGameState();
+  game.levelIndex = idx;
+  const cfg = LEVELS[idx];
+  game.levelCfg = cfg;
+  game.level = cfg.id;
+  game.budget = cfg.budget;
+  game.populationAtRisk = cfg.pop;
+  game.hotspots = generateHotspots(12);
+  game.shelters = [];
+  game.resourcesUsed = 0;
+  game.livesSaved = 0;
+  // if NASA loaded, try to assign a NASA NEO to this level
+  if(game.useNASA && nasaNeos.length > 0){
+    // pick a NASA NEO roughly matching difficulty (larger levels -> larger NEOS if possible)
+    const candidate = choose(nasaNeos);
+    const fragCount = cfg.frags;
+    const fragments = mapNeoToFragments(candidate, fragCount, cfg.boss);
+    game.asteroid = { fragments, timeToImpact: cfg.time, detectedAt: nowMs() };
+    news(`Level ${cfg.id} seeded from NASA NEO: ${candidate.name}`);
+  } else {
+    game.asteroid = createAsteroidProcedural(cfg);
+    news(`Level ${cfg.id} procedural asteroid generated.`);
+  }
+  game.running = true;
+  game.paused = false;
+  game.view = 'orbit';
+  game.messages = [];
+  game.energy = 100;
+  game.tool = null;
+  game.tractorHeld = false;
+  news(`Level ${cfg.id}: ${cfg.name} — ${cfg.objective}`);
+  updateUI();
+  resultModal.classList.add('hidden');
+}
+
+/* ---------- Impact helper: shield calculations ---------- */
+/* compute fraction of protection over hotspot */
+function computeShelterProtection(h){
+  let cover = 0;
+  for(const s of game.shelters){
+    const d = Math.hypot(h.x - s.x, h.y - s.y);
+    if(d < s.radius) cover = Math.max(cover, 0.7);
+  }
+  return cover;
+}
+
+/* ---------- init menu population ---------- */
+(function initMenu(){
+  levelList.innerHTML = '';
+  LEVELS.forEach((lvl, idx)=>{
+    const b = document.createElement('div');
+    b.className = 'levelBtn';
+    b.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>Level ${lvl.id}: ${lvl.name}</strong><div style="font-size:12px;color:var(--muted)">${lvl.objective}</div></div><div style="font-size:12px;color:var(--muted)">Time ${lvl.time}s</div></div>`;
+    b.onclick = ()=>{ menuModal.classList.add('hidden'); startLevel(idx); };
+    levelList.appendChild(b);
+  });
+})();
+
+/* ---------- start with menu open ---------- */
+openLevelMenu();
+
+/* ---------- Kick off NASA fetch on load ---------- */
+fetchNasaNeos();
+
+/* ---------- Final notes (in-app) ----------
+ - This file auto-loads NASA NEOs at startup (DEMO_KEY). For heavy usage, obtain your own key and/or server-side proxy.
+ - If the browser blocks the request due to CORS when opened as local file, run a simple static server:
+     python -m http.server 8000
+   and open http://localhost:8000/meteor_madness_nasa.html
+ - The mapping from NASA NEO fields to game parameters is intentionally approximate (game-play driven).
+ - Enjoy — and good luck in the hackathon!
+------------------------------------------- */
+</script>
+</body>
+</html>
