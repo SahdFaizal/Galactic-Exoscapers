@@ -175,7 +175,6 @@
 /* Meteor Madness — NASA NEO integrated single-file
    - Automatically loads NASA NEOs using DEMO_KEY on startup
    - Falls back to procedural asteroids if NASA data can't be fetched
-   - For production/hackathon, swap DEMO_KEY for your key and/or use server-side proxy
 */
 
 const DEMO_NASA_API_KEY = "q1LajBdKKWnjbvn4BZ7TQY19DtGHSDXDXxEYeYkv"; // updated to real API key
@@ -307,7 +306,7 @@ function populateNeoFeed(){
 }
 
 /* Convert a NASA NEO object into our in-game asteroid fragment parameters.
-   We create one or more fragments from a single NEO if the level requests multiple fragments.
+   I create one or more fragments from a single NEO if the level requests multiple fragments.
 */
 function mapNeoToFragments(neo, fragCount=1, boss=false){
   // diameter meters -> radius px scale factor
@@ -946,14 +945,8 @@ openLevelMenu();
 /* ---------- Kick off NASA fetch on load ---------- */
 fetchNasaNeos();
 
-/* ---------- Final notes (in-app) ----------
- - This file auto-loads NASA NEOs at startup (DEMO_KEY). For heavy usage, obtain your own key and/or server-side proxy.
- - If the browser blocks the request due to CORS when opened as local file, run a simple static server:
-     python -m http.server 8000
-   and open http://localhost:8000/meteor_madness_nasa.html
- - The mapping from NASA NEO fields to game parameters is intentionally approximate (game-play driven).
- - Enjoy — and good luck in the hackathon!
-------------------------------------------- */
+
 </script>
 </body>
 </html>
+
